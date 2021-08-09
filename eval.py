@@ -23,55 +23,57 @@ test_path = config.test_path
 batch_img_dim = config.batch_img_dim
 batch_msk_dim = config.batch_msk_dim
 
-# Load dataset
-train_images_files, train_mask_files, test_images_files, test_mask_files = ds.load_dataset(train_path, test_path)
 
-# load model
-with CustomObjectScope({'iou': iou, 'dice': dice, 'loss': loss_function}):
-    model = tf.keras.models.load_model(model_path)
+if __name__ == '__main__':
+    # Load dataset
+    train_images_files, train_mask_files, test_images_files, test_mask_files = ds.load_dataset(train_path, test_path)
 
-test_generator = Val_Generator(test_images_files, test_mask_files, batch_size=20,
-                               img_dim=(batch_img_dim[1], batch_img_dim[2]), augmentation=True)
+    # load model
+    with CustomObjectScope({'iou': iou, 'dice': dice, 'loss': loss_function}):
+        model = tf.keras.models.load_model(model_path)
 
-for x_test, y_test in test_generator:
-    break
+    test_generator = Val_Generator(test_images_files, test_mask_files, batch_size=20,
+                                   img_dim=(batch_img_dim[1], batch_img_dim[2]), augmentation=True)
 
-y_pred = model.predict(x_test)
+    for x_test, y_test in test_generator:
+        break
 
-y_true = (y_test > 0.5).flatten()
-y_pred = (y_pred > 0.5).flatten()
+    y_pred = model.predict(x_test)
 
-report = classification_report(y_true, y_pred, output_dict=True)
+    y_true = (y_test > 0.5).flatten()
+    y_pred = (y_pred > 0.5).flatten()
 
-Precision = report['True']['precision']
-Recall = report['True']['recall']
-F1_score = report['True']['f1-score']
+    report = classification_report(y_true, y_pred, output_dict=True)
 
-Sensitivity = Recall
-Specificity = report['False']['recall']
+    Precision = report['True']['precision']
+    Recall = report['True']['recall']
+    F1_score = report['True']['f1-score']
 
-IOU = (Precision * Recall) / (Precision + Recall - Precision * Recall)
-AUC = roc_auc_score(y_true.flatten(), y_pred.flatten())
-MCC = matthews_corrcoef(y_true.flatten(), y_pred.flatten())
+    Sensitivity = Recall
+    Specificity = report['False']['recall']
 
-jac_value = jaccard_score(y_true.flatten(), y_pred.flatten())
-acc_value = accuracy_score(y_true.flatten(), y_pred.flatten())
+    IOU = (Precision * Recall) / (Precision + Recall - Precision * Recall)
+    AUC = roc_auc_score(y_true.flatten(), y_pred.flatten())
+    MCC = matthews_corrcoef(y_true.flatten(), y_pred.flatten())
 
-print(classification_report(y_true, y_pred))
+    jac_value = jaccard_score(y_true.flatten(), y_pred.flatten())
+    acc_value = accuracy_score(y_true.flatten(), y_pred.flatten())
 
-# create or load CSV report
-try:
-    result_df = pd.read_csv('results.csv')
-except FileNotFoundError:
-    print('File Not Found - creating new file')
-    result_df = pd.DataFrame(
-        columns=["Date", "Experiment Name", "F1", "AUC", "MCC", "IOU", "Acc", "Jaccard", "Recall", "Precision",
-                 "Sensitivity", "Specificity"])
+    print(classification_report(y_true, y_pred))
 
-# update results to dataframe
-result_list = [str(dt.now()), EXP_NAME, F1_score, AUC, MCC, IOU, acc_value, jac_value, Recall, Precision, Sensitivity,
-               Specificity]
-result_df.loc[len(result_df)] = result_list
+    # create or load CSV report
+    try:
+        result_df = pd.read_csv('results.csv')
+    except FileNotFoundError:
+        print('File Not Found - creating new file')
+        result_df = pd.DataFrame(
+            columns=["Date", "Experiment Name", "F1", "AUC", "MCC", "IOU", "Acc", "Jaccard", "Recall", "Precision",
+                     "Sensitivity", "Specificity"])
 
-# save dataframe as csv
-result_df.to_csv('results.csv', index=False)
+    # update results to dataframe
+    result_list = [str(dt.now()), EXP_NAME, F1_score, AUC, MCC, IOU, acc_value, jac_value, Recall, Precision, Sensitivity,
+                   Specificity]
+    result_df.loc[len(result_df)] = result_list
+
+    # save dataframe as csv
+    result_df.to_csv('results.csv', index=False)
